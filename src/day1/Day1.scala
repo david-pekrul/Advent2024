@@ -20,5 +20,14 @@ object Day1 {
     val part1 = list1.sorted.zip(list2.sorted).map{ case (a,b) => Math.abs(a-b) }.sum
     println(s"Part 1: $part1")
 
+
+    val list2Count = list2.groupBy(identity).view.mapValues(_.size)
+
+    val part2 = list1.map(num1 => {
+      list2Count.getOrElse(num1, 0) * num1
+    }).sum
+
+    println(s"Part 2: $part2")
+
   }
 }
