@@ -11,12 +11,8 @@ object Day4 {
     val part1 = solvePart1(input)
     println(s"Part 1: $part1")
 
-
-    //2069 too high
     val part2 = solvePart2(input)
     println(s"Part 2: $part2")
-
-
   }
 
   def solvePart1(input: Seq[Seq[Char]]): Long = {
