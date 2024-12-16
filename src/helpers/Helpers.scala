@@ -40,6 +40,14 @@ object Helpers {
     }
   }
 
+  def gcf(a: BigInt, b: BigInt): BigInt = {
+    if (b == 0) {
+      a
+    } else {
+      gcf(b, a % b)
+    }
+  }
+
   def lcm(a: Long, b: Long): Long = {
     a * (b / gcf(a,b))
   }
@@ -53,6 +61,23 @@ object Helpers {
     } else {
       input.tail.foldLeft(input.head)((acc,next) => {
         lcm(acc,next)
+      })
+    }
+  }
+
+  def lcm(a: BigInt, b: BigInt): BigInt = {
+    a * (b / gcf(a, b))
+  }
+
+  def lcm(input: Seq[BigInt]): BigInt = {
+    if (input.isEmpty) {
+      ???
+    }
+    if (input.size == 1) {
+      input.head
+    } else {
+      input.tail.foldLeft(input.head)((acc, next) => {
+        lcm(acc, next)
       })
     }
   }

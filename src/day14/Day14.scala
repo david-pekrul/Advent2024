@@ -3,12 +3,15 @@ package day14
 import helpers.Helpers
 import Vector.*
 
+import java.io.{File, FileWriter}
+import scala.annotation.tailrec
+
 object Day14 {
   def main(args: Array[String]): Unit = {
     //val input = Helpers.readFile("src/day14/test.txt")
     //val input = Helpers.readFile("src/day14/single.txt")
     val input = Helpers.readFile("src/day14/day14.txt")
-    
+
     val robots = parse(input)
     val WIDTH = 101
     val HEIGHT = 103
@@ -17,8 +20,8 @@ object Day14 {
 
     val part1 = score(finalCoords, width = WIDTH, height = HEIGHT)
     println(s"Part 1: $part1")
-    //too low 90012120
-    //        219150360
+
+    part2(robots, WIDTH, HEIGHT)
   }
 
 
@@ -59,9 +62,80 @@ object Day14 {
     })
 
     def mult(a: Long, b: Long) = a * b
-    
+
     quadrantScores.values.reduceLeft(mult)
+
+  }
+  
+  def findCycleLength(robots: Seq[SecurityRobot], width: Int, height: Int): Long = {
     
+    val vectors = robots.map(_.v).toSet
+    
+    @tailrec
+    def _findRobotCycle(current: SecurityRobot, startPoint: Coord, seconds: Long): Long = {
+      if(current.c == startPoint && seconds > 0) then {
+        return seconds
+      }
+      _findRobotCycle(SecurityRobot(current.move(1,width,height),current.v),startPoint,seconds+1)
+    }
+    
+    val cycleLengths = robots.map(r => _findRobotCycle(r,r.c,0)).toSet
+    //Helpers.lcm(cycleLengths.toSeq) => This returns such an insanely large number that I don't know what to do with it
+    if cycleLengths.size > 1 then {
+      throw new RuntimeException("unexpected")
+    }
+    return cycleLengths.head
+  }
+
+  def part2(robots: Seq[SecurityRobot], width: Int, height: Int) = {
+
+    val robotCount = robots.size
+    val cycleLength = findCycleLength(robots,width,height)
+
+    val fileWriter = new FileWriter(new File("src/day14/day14.out"))
+    
+    @tailrec
+    def _next(robots: Seq[SecurityRobot], seconds: Long): Long = {
+      if(seconds > cycleLength) {
+        return -1
+      }
+      val nextRobots = robots.map(r => SecurityRobot(r.move(1, width, height), r.v))
+
+      val coords = nextRobots.map(_.c).toSet
+      val neighborsInCoords = coords.flatMap(c => ALL_DIRECTIONS.map(_.apply(c))).count(c => coords.contains(c))
+      printRobots(robots, width, height, seconds, fileWriter)
+
+      _next(nextRobots, seconds + 1)
+    }
+
+    _next(robots, 0)
+  }
+
+  def printRobots(robots: Seq[SecurityRobot], width: Int, height: Int, seconds: Long, fileWriter: FileWriter): Unit = {
+
+    fileWriter.append(s"\r\n\r\n=====================================\r\nSeconds: $seconds")
+//    println(s"\r\n\r\n=====================================\r\nSeconds: $seconds")
+    if(seconds % 1000 == 0){ 
+      println(seconds)
+    }
+    
+
+    val robotSet = robots.map(_.c).toSet
+    (0 until height).foreach(y => {
+      fileWriter.append("\r\n")
+//      println()
+      (0 until width).foreach(x => {
+        if (robotSet.contains(Coord(x, y))) then {
+//          print("R")
+          fileWriter.append("R")
+        } else {
+//          print("_")
+          fileWriter.append(" ")
+        }
+      })
+    })
+//    println()
+    fileWriter.append("\r\n")
   }
 }
 
