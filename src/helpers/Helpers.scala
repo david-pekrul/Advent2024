@@ -1,6 +1,7 @@
 package helpers
 
 import scala.io.Source
+import Vector.*
 
 object Helpers {
   def readFile(filePath: String) = {
@@ -80,5 +81,65 @@ object Helpers {
         lcm(acc, next)
       })
     }
+  }
+}
+
+case class Coord(x: Int, y: Int) {
+  def neighbors(): Set[Coord] = {
+    ALL_DIRECTIONS.map(_.apply(this)).toSet
+  }
+}
+
+object Vector extends Enumeration {
+  val UP: Vector = Vector(0, -1)
+  val RIGHT: Vector = Vector(1, 0)
+  val DOWN: Vector = Vector(0, 1)
+  val LEFT: Vector = Vector(-1, 0)
+
+  val ALL_DIRECTIONS: Seq[Vector] = Seq(UP, DOWN, LEFT, RIGHT)
+
+  def charToVector(c: Char): Vector = {
+    c match
+    {
+      case '^' => UP
+      case '>' => RIGHT
+      case 'v' => DOWN
+      case '<' => LEFT
+    }
+  }
+}
+
+case class Vector(deltaX: Int, deltaY: Int) {
+  def apply(coord: Coord): Coord = {
+    Coord(coord.x + deltaX, coord.y + deltaY)
+  }
+
+  def scale(s: Int): Vector = {
+    Vector(deltaX * s, deltaY * s)
+  }
+
+  def rotate(): Vector = {
+    this match {
+      case UP => RIGHT
+      case RIGHT => DOWN
+      case DOWN => LEFT
+      case LEFT => UP
+    }
+  }
+
+  def reverse(): Vector = {
+    this match {
+      case UP => DOWN
+      case RIGHT => LEFT
+      case DOWN => UP
+      case LEFT => RIGHT
+    }
+  }
+
+  lazy val toChar: Char = this match {
+    case UP => '^'
+    case RIGHT => '>'
+    case DOWN => 'v'
+    case LEFT => '<'
   }
 }
