@@ -7,29 +7,15 @@ import scala.annotation.tailrec
 
 object Day16 {
   def main(args: Array[String]): Unit = {
-    val input = Helpers.readFile("src/day16/test1.txt")
+    //val input = Helpers.readFile("src/day16/test1.txt")
     //val input = Helpers.readFile("src/day16/test2.txt")
-    //val input = Helpers.readFile("src/day16/day16.txt")
+    val input = Helpers.readFile("src/day16/day16.txt")
 
     val maze = Maze.parse(input)
-
-
-    val paths = maze.findPaths()
-
-//    val part1 = paths._1(maze.end)
-//    println(s"Part 1: $part1")
-
-    val part2data = maze.findPaths2()
-    val part1_2 = part2data._1.filter(_._1.c == maze.end).values.min
-
-    println(s"part1_2: $part1_2")
     
-    val part2 = Maze.walkBack(part2data._1, part2data._2, maze.end, maze.start)
+    val (part1, part2) = maze.part2()
+    println(s"Part 1: $part1")
     println(s"Part 2: $part2")
-    //499 too high
-    //417 too low
-    //https://www.youtube.com/watch?v=ro2SSxd21JM
-
   }
 }
 
@@ -73,7 +59,7 @@ class Maze(val points: Map[Coord, Char], val start: Coord, val end: Coord) {
   val OPEN_SYMBOLS: Set[Char] = Set('.', 'E')
 
   def findPaths(): (Map[Coord, Int], Map[Coord, Vector]) = {
-
+    /* THIS IS DEAD CODE. It works, but I solved it "better" in part2" */
     @tailrec
     def _dijkstra(minCostToGetTo: Map[Coord, Int], vectorForMinCostAtCoord: Map[Coord, Vector], visited: Set[Coord]): (Map[Coord, Int], Map[Coord, Vector]) = {
 
@@ -153,64 +139,55 @@ class Maze(val points: Map[Coord, Char], val start: Coord, val end: Coord) {
     Maze(points.filter(_._2 != '#'), start, end)
   }
 
-  def findPaths2(): (Map[MazePoint, Int], Map[MazePoint, Set[MazePoint]]) = {
+  def part2(): (Int,Int) = {
 
-    val mazePointStart = MazePoint(start, RIGHT)
-    val startMinCosts = points.flatMap(p => {
-        ALL_DIRECTIONS.map(v => MazePoint(p._1, v))
-      }).map(mp => (mp -> Int.MaxValue)).toMap
-      .updated(mazePointStart, 0)
-
-    val endPoints = startMinCosts.filter(_._1.c == end)
-    
     @tailrec
-    def _dijkstra2(
-                    minCostToGetTo: Map[MazePoint, Int], //For a point state, the min cost to get there
-                    pointToPrevious: Map[MazePoint, Set[MazePoint]], //for a point state, what are the states that got to it for its min cost
-                    visited: Set[MazePoint] //points that face into a wall or backwards
-                  ): (Map[MazePoint, Int], Map[MazePoint, Set[MazePoint]]) = {
+    def _pathBuilder(paths: Set[Seq[(MazePoint,Int)]], minCosts: Map[MazePoint,Int] = Map()): Set[Seq[(MazePoint,Int)]] = {
 
-      val possibleNextPoints = minCostToGetTo
-        .filter(_._2 != Int.MaxValue)
-        .filter(mpc => {
-          !visited.contains(mpc._1)
-        })
-
-      if (possibleNextPoints.isEmpty) then {
-        return (minCostToGetTo, pointToPrevious)
+      if(paths.forall(p => p.last._1.c == end)){
+        return paths
       }
-
-      val (currentPoint, currentCost) = possibleNextPoints.minBy(_._2)
-      val minEndCost = endPoints.map(ep => minCostToGetTo(ep._1)).min
-
-      def neighborsDirectionsCost = currentPoint
-        .getNeighbors().filter(n => {
-          points.contains(n.c)
-        }).map { n => {
-          if (n == currentPoint.getForward()) {
-            (n, currentCost + 1)
-          } else {
-            (n, currentCost + 1000)
-          }
-        }}
-        .filter(n => n._2 <= minEndCost)
-
-      val (updatedCostToGetTo, updatedVectorForMinCostAtCoord) = neighborsDirectionsCost.foldLeft((minCostToGetTo, pointToPrevious))((acc, next) => {
-        val (latestCost, latestPrevious) = acc
-        if (latestCost(next._1) > next._2) then {
-          //the new cost is lower
-          val updatedCostMap = acc._1.updated(next._1, next._2)
-          val updatedPreviousMap = latestPrevious.updatedWith(next._1)(v => Some(v.getOrElse(Set()) + currentPoint))
-          (updatedCostMap, updatedPreviousMap)
+      
+      val updatedPaths = paths.flatMap(path => {
+        if(path.last._1.c == end) then {
+          Seq(path)
         } else {
-          acc
+
+          val currentLast = path.last
+
+          val stepForward = (currentLast._1.getForward(), currentLast._2 + 1)
+          val rotateRight = (currentLast._1.getRotateRight(), currentLast._2 + 1000)
+          val rotateLeft = (currentLast._1.getRotateLeft(), currentLast._2 + 1000)
+
+          def isValidRotation(r: MazePoint): Boolean = {
+            !points.get(r.getForward().c).contains('#')
+          }
+
+          val updates = (if (points.contains(stepForward._1.c) && !(points(stepForward._1.c) == '#')) then Set(path :+ stepForward) else Set.empty)
+            ++ (if (isValidRotation(rotateLeft._1)) then Set(path :+ rotateLeft) else Set.empty)
+            ++ (if (isValidRotation(rotateRight._1)) then Set(path :+ rotateRight) else Set.empty)
+          updates
         }
       })
       
-      _dijkstra2(updatedCostToGetTo, updatedVectorForMinCostAtCoord, visited + currentPoint)
+      val updatedMinCosts = updatedPaths.foldLeft(minCosts)((currentMinCosts,nextPath) => {
+        currentMinCosts.updatedWith(nextPath.last._1)(existingOpt => Some(Math.min(existingOpt.getOrElse(Int.MaxValue),nextPath.last._2)))
+      })
+      
+      //remove the paths that got to a different point, but with higher cost
+      val validUpdatedPaths = updatedPaths.filter(p => {
+        updatedMinCosts(p.last._1) == p.last._2
+      })
+      
+      _pathBuilder(validUpdatedPaths, updatedMinCosts)
     }
 
-    _dijkstra2(startMinCosts, Map(), Set())
+    val paths = _pathBuilder(Set(Seq((MazePoint(start,RIGHT),0))))
+    
+    val minPathCost = paths.map(_.last._2).min //this is part 1!
+    val minPaths = paths.toSeq.filter(_.last._2 == minPathCost)
+    val pointsOnMinPaths = minPaths.flatMap(path => path.map(_._1.c)).toSet
+    (minPathCost, pointsOnMinPaths.size)
   }
 }
 
@@ -219,8 +196,12 @@ case class MazePoint(val c: Coord, val v: Vector) {
     MazePoint(v.apply(c), v)
   }
 
-  def getRotations(): Seq[MazePoint] = {
-    Seq(MazePoint(c, v.rotate()), MazePoint(c, v.rotate().reverse()))
+  def getRotateLeft(): MazePoint = {
+    MazePoint(c, v.rotate().reverse())
+  }
+
+  def getRotateRight(): MazePoint = {
+    MazePoint(c, v.rotate())
   }
 
   def getBackwards(): MazePoint = {
@@ -228,7 +209,7 @@ case class MazePoint(val c: Coord, val v: Vector) {
   }
 
   def getNeighbors(): Seq[MazePoint] = {
-    getRotations() :+ getForward()
+    Seq(getForward(), getRotateLeft(), getRotateRight())
   }
 }
 
