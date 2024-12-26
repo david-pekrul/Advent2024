@@ -7,17 +7,17 @@ import scala.annotation.tailrec
 object Day17 {
   def main(args: Array[String]): Unit = {
 
-    val testCases = Seq(
-      ComputerState.execute(ComputerState(0, 0, 9, Program(Seq((2, 6)), 0), Seq.empty)),
-      ComputerState.execute(ComputerState(10, 0, 0, Program(Seq((5, 0), (5, 1), (5, 4)), 0), Seq.empty)),
-      ComputerState.execute(ComputerState(2024, 0, 0, Program(Seq((0, 1), (5, 4), (3, 0)), 0), Seq.empty)),
-      ComputerState.execute(ComputerState(0, 29, 0, Program(Seq((1, 7)), 0), Seq.empty)),
-      ComputerState.execute(ComputerState(0, 2024, 43690, Program(Seq((4, 0)), 0), Seq.empty))
-    )
-
-    testCases.foreach(t => {
-      println("Test: " + ComputerState.execute(t))
-    })
+//    val testCases = Seq(
+//      ComputerState.execute(ComputerState(0, 0, 9, Program(Seq((2, 6)), 0), Seq.empty)),
+//      ComputerState.execute(ComputerState(10, 0, 0, Program(Seq((5, 0), (5, 1), (5, 4)), 0), Seq.empty)),
+//      ComputerState.execute(ComputerState(2024, 0, 0, Program(Seq((0, 1), (5, 4), (3, 0)), 0), Seq.empty)),
+//      ComputerState.execute(ComputerState(0, 29, 0, Program(Seq((1, 7)), 0), Seq.empty)),
+//      ComputerState.execute(ComputerState(0, 2024, 43690, Program(Seq((4, 0)), 0), Seq.empty))
+//    )
+//
+//    testCases.foreach(t => {
+//      println("Test: " + ComputerState.execute(t))
+//    })
 
     //val input = Helpers.readFile("src/day17/test.txt")
     val input = Helpers.readFile("src/day17/day17.txt")
@@ -26,19 +26,20 @@ object Day17 {
     println(s"Part 1: $part1")
 
 
-//    val test2StartState = ComputerState.parse("""Register A: 2024
-//                  |Register B: 0
-//                  |Register C: 0
-//                  |
-//                  |Program: 0,3,5,4,3,0""".stripMargin.split("\r\n"))
-//    
-//    val test2_1 = ComputerState.execute(test2StartState.setStartValue(117440))
-//    println(test2_1)
-//    val test2_2 = ComputerState.execute2(test2StartState.setStartValue(117440))
-//    println("Test 2_2: " + test2_2)
+    //    val test2StartState = ComputerState.parse("""Register A: 2024
+    //                  |Register B: 0
+    //                  |Register C: 0
+    //                  |
+    //                  |Program: 0,3,5,4,3,0""".stripMargin.split("\r\n"))
+    //    
+    //    val test2_1 = ComputerState.execute(test2StartState.setStartValue(117440))
+    //    println(test2_1)
+    //    val test2_2 = ComputerState.execute2(test2StartState.setStartValue(117440))
+    //    println("Test 2_2: " + test2_2)
 
-    val part2 = ComputerState.execute2(computer)
+    val part2 = ComputerState.execute3(computer)
     println(s"Part 2: $part2")
+    //30118712 too low
 
   }
 }
@@ -110,7 +111,7 @@ object ComputerState {
     _process(start)
   }
 
-  def execute2(start: ComputerState): (ComputerState,Long) = {
+  def execute2(start: ComputerState): (ComputerState, Long) = {
 
     val expectedOutputIndexToValue = start.p.ops
       .flatMap(t => Seq(t._1, t._2))
@@ -121,7 +122,8 @@ object ComputerState {
     def lastMatchIndex(state: ComputerState, startA: Long): Int = {
       state.out.zipWithIndex.map { case (o, idx) => {
         (o, idx, expectedOutputIndexToValue(idx), expectedOutputIndexToValue(idx) == o)
-      }}.lastIndexWhere(_._4)
+      }
+      }.lastIndexWhere(_._4)
     }
 
     def matches(state: ComputerState, startA: Long): Boolean = {
@@ -129,25 +131,28 @@ object ComputerState {
     }
 
     @tailrec
-    def _process(currentState: ComputerState, startA: Long, lowestNumberForNumberOfMatches: Map[Int,Long]): (ComputerState,Long) = {
+    def _process(currentState: ComputerState, startA: Long, lowestNumberForNumberOfMatches: Map[Int, Seq[Long]]): (ComputerState, Long) = {
 
       val lastMatchingIndexForCurrentState = lastMatchIndex(currentState, startA)
-      if (lastMatchingIndexForCurrentState != currentState.out.length-1) {
+      if (lastMatchingIndexForCurrentState != currentState.out.length - 1) {
         //what can I learn about the next state from the current A starting point?
-        if(startA % 1000000 == 0) {
+        if (startA % 1000000 == 0) {
           println(startA)
         }
-        val updatedData = lowestNumberForNumberOfMatches.updatedWith(lastMatchingIndexForCurrentState)(existing => Some(existing.getOrElse(startA)))
-        return _process(start.setStartValue(startA+1), startA+1, updatedData)
+        val updatedData = if lastMatchingIndexForCurrentState > 0 then
+          lowestNumberForNumberOfMatches.updatedWith(lastMatchingIndexForCurrentState)(existing => Some(existing.getOrElse(Seq.empty)).map(_ :+ startA))
+        else
+          lowestNumberForNumberOfMatches
+        return _process(start.setStartValue(startA + 1), startA + 1, updatedData)
       }
 
       if (matches(currentState, startA)) {
         return (currentState, startA)
       }
-      
-      if(currentState.p.isDone()){
-        val updatedData = lowestNumberForNumberOfMatches.updatedWith(lastMatchingIndexForCurrentState)(existing => Some(existing.getOrElse(startA)))
-        return _process(start.setStartValue(startA+1), startA+1, updatedData)
+
+      if (currentState.p.isDone()) {
+        val updatedData = lowestNumberForNumberOfMatches.updatedWith(lastMatchingIndexForCurrentState)(existing => Some(existing.getOrElse(Seq.empty)).map(_ :+ startA))
+        return _process(start.setStartValue(startA + 1), startA + 1, updatedData)
       }
 
       val operationOpt = currentState.p.getCurrent()
@@ -197,19 +202,26 @@ object ComputerState {
 
     _process(start, 1, Map.empty)
   }
-
-
-  def workBackwards(start: ComputerState): Long = {
-    val expectedOutputIndexToValue = start.p.ops
-      .flatMap(t => Seq(t._1, t._2))
-      .zipWithIndex
-      .map { case (num, idx) => (idx -> num) }
-      .toMap
+  
+  def execute3(start: ComputerState): Long = {
     
+    val targetProgram = start.p.getRawOutput()
     
+    def _search(startA: Long, shift: Int): Long = {
+      val currentState = start.setStartValue(startA+shift)
+      val outputForState = ComputerState.execute(currentState).out.map(_.intValue)
 
-
-    ???
+      if outputForState == targetProgram then {
+        return currentState.a
+      }
+      
+      if(targetProgram.endsWith(outputForState)) then {
+        return _search((startA+shift)*8,0)
+      } else {
+        return _search(startA,shift+1)
+      }
+    }
+    _search(1,0)
   }
 }
 
@@ -253,6 +265,10 @@ case class Program(ops: Seq[(Int, Int)], optPtr: Int) {
 
   def isDone(): Boolean = {
     optPtr >= ops.size
+  }
+  
+  def getRawOutput(): Seq[Int] = {
+    ops.flatMap(x => Seq(x._1, x._2))
   }
 }
 
