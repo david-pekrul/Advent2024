@@ -12,9 +12,12 @@ object Day20 {
     val maze = RaceMaze.parse(input)
 
     val cheatPoints = maze.findCheats()
-//    val part1 = cheatPoints.count(_._2 >= 100)
+    //    val part1 = cheatPoints.count(_._2 >= 100)
     val part1 = cheatPoints.count(_._2 >= 100)
     println(s"Part 1: $part1")
+
+    val part2 = maze.findCheats2(100)
+    println(s"Part 2: $part2")
   }
 }
 
@@ -69,13 +72,34 @@ class RaceMaze(val points: Map[Coord, Char], val width: Int, val height: Int) {
     _dijkstra(startingData, Set.empty)
   }
 
-  def findCheats(): Seq[(Coord,Int)] = {
+  def findCheats(): Seq[(Coord, Int)] = {
     val thing = points.keys.toSeq.flatMap(startPoint => {
       val x = Vector.ALL_DIRECTIONS.map(v => v.apply(startPoint) -> v.apply(v.apply(startPoint)))
         .map(skip => (skip._1 -> (noCheatDistances.getOrElse(skip._2, 0) - noCheatDistances(startPoint) - 2)))
       x
     })
     thing.filter(_._2 > 0)
+  }
+
+  def findCheats2(minCheat: Int): Long = {
+
+    val sortedPoints = noCheatDistances.toSeq.sortBy(_._2)
+
+    val result = sortedPoints.foldLeft(Set[(Coord,Coord,Int)]())((acc, nextCoord) => {
+      val shortcutsForNextCoord = sortedPoints.drop(nextCoord._2 + minCheat)
+        .filter(n => dist(nextCoord._1, n._1) <= 20)
+        .filter(n => {
+          minCheat <= (n._2 - nextCoord._2 + dist(n._1,nextCoord._1))
+        })
+        .map(n => (nextCoord._1, n._1, noCheatDistances(n._1) - noCheatDistances(nextCoord._1) -dist(n._1,nextCoord._1)) )
+      acc ++ shortcutsForNextCoord
+    }).filter(x => x._3 >= minCheat)
+    result.size
+    //result.map{ case (a,b,c) => (c -> (a,b,dist(a,b)))}.groupMap(_._1)(_._2).toSeq.sortBy(_._1)
+  }
+
+  def dist(a: Coord, b: Coord): Int = {
+    Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
   }
 }
 
